@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="Catana Logo" width="200"/>
 </p>
 
-<h1 align="center">
+
 # catana
 Catana is an interactive Red Team bootstrapper for Kali Linux, originally inspired by PimpMyKali, but tailored to the workflows and tooling needs of our Penetration Testing team. It automates the installation and setup of essential offensive security tools, environments and configurations.
 
