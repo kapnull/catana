@@ -52,7 +52,7 @@ Catana is an interactive Red Team bootstrapper for Kali Linux, originally inspir
 
 ### 1. Clone the repo and change directory
 ```bash
-git clone https://github.com/anenstein/catana.git
+git clone https://github.com/kapnull/catana.git
 cd catana
 ```
 ### 2. Run the installer for the first time
@@ -67,7 +67,7 @@ sudo catana
 #### To pull in updates and reinstall system-wide:
 ```bash
 cd catana
-git pull https://github.com/anenstein/catana.git
+git pull https://github.com/kapnull/catana.git
 ```
 - Re-run the installer script to update /usr/local/bin/catana
 ```bash
