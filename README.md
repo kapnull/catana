@@ -52,7 +52,7 @@ Catana is an interactive Pentest Team bootstrapper for Kali Linux, originally in
 
 ### 1. Clone the repo and change directory
 ```bash
-git clone https://github.com/kapnull/catana.git
+git clone https://github.com/0xA13/catana.git
 cd catana
 ```
 ### 2. Run the installer for the first time
@@ -67,7 +67,7 @@ sudo catana
 #### To pull in updates and reinstall system-wide:
 ```bash
 cd catana
-git pull https://github.com/kapnull/catana.git
+git pull https://github.com/0xA13/catana.git
 ```
 - Re-run the installer script to update /usr/local/bin/catana
 ```bash
