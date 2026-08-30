@@ -260,26 +260,38 @@ install_remmina() {
   fi
 }
 install_bloodhound() {
+    echo -e "\n${BLUE}==> Launching BloodHound in a new tmux session${NC}"
+    if ! command -v tmux &>/dev/null; then
+        echo -e "${RED}ERROR: tmux is not installed. Please install it with: sudo apt install tmux${NC}"
+        return 1
+    fi
 
-  echo -e "\n${BLUE}==> Launching BloodHound in a new tmux session${NC}"
+    local COMPOSE_FILE="/opt/catana/docker-compose.yml"
+    if [ ! -f "$COMPOSE_FILE" ]; then
+        echo -e "${RED}ERROR: compose file not found at $COMPOSE_FILE${NC}"
+        return 1
+    fi
 
-  if ! command -v tmux &>/dev/null; then
+    # pick whichever compose is actually present
+    local COMPOSE_CMD
+    if docker compose version &>/dev/null; then
+        COMPOSE_CMD="docker compose"
+    elif command -v docker-compose &>/dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        echo -e "${RED}ERROR: neither 'docker compose' nor 'docker-compose' is available${NC}"
+        return 1
+    fi
 
-    echo -e "${RED}ERROR: tmux is not installed. Please install it with: sudo apt install tmux${NC}"
+    if tmux has-session -t bloodhound 2>/dev/null; then
+        echo -e "${YELLOW}==> Killing existing 'bloodhound' tmux session${NC}"
+        tmux kill-session -t bloodhound
+    fi
 
-    return 1
-
-  fi
-
-  if tmux has-session -t bloodhound 2>/dev/null; then
-
-    echo -e "${YELLOW}==> Killing existing 'bloodhound' tmux session${NC}"
-
-    tmux kill-session -t bloodhound
-
-  fi
-  tmux new-session -s bloodhound 'sudo docker compose up'
-
+    tmux new-session -d -s bloodhound \; \
+        set-option remain-on-exit on \; \
+        send-keys "sudo $COMPOSE_CMD -f '$COMPOSE_FILE' up" Enter
+    echo -e "${GREEN}==> Started. Attach with: tmux attach -t bloodhound${NC}"
 }
 
 # Ensure Node.js and npm
