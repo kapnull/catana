@@ -259,40 +259,78 @@ install_remmina() {
     handle_restarts
   fi
 }
+
 install_bloodhound() {
-    echo -e "\n${BLUE}==> Launching BloodHound in a new tmux session${NC}"
-    if ! command -v tmux &>/dev/null; then
-        echo -e "${RED}ERROR: tmux is not installed. Please install it with: sudo apt install tmux${NC}"
-        return 1
-    fi
+  echo -e "\n${BLUE}==> Launching BloodHound in a new tmux session${NC}"
 
-    local COMPOSE_FILE="/opt/catana/docker-compose.yml"
-    if [ ! -f "$COMPOSE_FILE" ]; then
-        echo -e "${RED}ERROR: compose file not found at $COMPOSE_FILE${NC}"
-        return 1
-    fi
+  if ! command -v tmux &>/dev/null; then
+    echo -e "${RED}ERROR: tmux is not installed. Install it with: apt install -y tmux${NC}"
+    return 1
+  fi
 
-    # pick whichever compose is actually present
-    local COMPOSE_CMD
-    if docker compose version &>/dev/null; then
-        COMPOSE_CMD="docker compose"
-    elif command -v docker-compose &>/dev/null; then
-        COMPOSE_CMD="docker-compose"
+  local COMPOSE_CMD
+  if docker compose version &>/dev/null; then
+    COMPOSE_CMD="docker compose"
+  elif command -v docker-compose &>/dev/null; then
+    COMPOSE_CMD="docker-compose"
+  else
+    echo -e "${RED}ERROR: neither 'docker compose' nor 'docker-compose' is available${NC}"
+    return 1
+  fi
+
+  local COMPOSE_FILE
+  COMPOSE_FILE="$(realpath -e docker-compose.yml 2>/dev/null)" || {
+    echo -e "${RED}ERROR: no docker-compose.yml in $(pwd)${NC}"
+    return 1
+  }
+  local COMPOSE_DIR
+  COMPOSE_DIR="$(dirname "$COMPOSE_FILE")"
+
+  systemctl is-active --quiet docker || run "Starting docker service" systemctl start docker
+
+  if [ "${BH_RESET:-0}" = "1" ]; then
+    run "Resetting BloodHound stack" \
+      bash -c "cd '$COMPOSE_DIR' && $COMPOSE_CMD -f '$COMPOSE_FILE' down"
+  fi
+
+  local envfile="$COMPOSE_DIR/.env"
+  local port
+
+  if [ -n "$(cd "$COMPOSE_DIR" && $COMPOSE_CMD -f "$COMPOSE_FILE" ps -q 2>/dev/null)" ]; then
+    port="$(grep -oP '^BLOODHOUND_PORT=\K.*' "$envfile" 2>/dev/null || echo 8080)"
+    echo -e "${YELLOW}==> Stack already running, reusing port $port${NC}"
+  else
+    port=8080
+    while ss -lntH "sport = :$port" | grep -q .; do
+      port=$((port + 1))
+      if [ "$port" -gt 8100 ]; then
+        echo -e "${RED}ERROR: no free port in 8080-8100${NC}"
+        return 1
+      fi
+    done
+    [ "$port" -ne 8080 ] && echo -e "${YELLOW}==> 8080 taken, using $port${NC}"
+
+    touch "$envfile"
+    if grep -q '^BLOODHOUND_PORT=' "$envfile"; then
+      sed -i "s/^BLOODHOUND_PORT=.*/BLOODHOUND_PORT=$port/" "$envfile"
     else
-        echo -e "${RED}ERROR: neither 'docker compose' nor 'docker-compose' is available${NC}"
-        return 1
+      echo "BLOODHOUND_PORT=$port" >> "$envfile"
     fi
+  fi
 
-    if tmux has-session -t bloodhound 2>/dev/null; then
-        echo -e "${YELLOW}==> Killing existing 'bloodhound' tmux session${NC}"
-        tmux kill-session -t bloodhound
-    fi
+  if tmux has-session -t bloodhound 2>/dev/null; then
+    echo -e "${YELLOW}==> Killing existing 'bloodhound' tmux session${NC}"
+    tmux kill-session -t bloodhound
+  fi
 
-    tmux new-session -d -s bloodhound \; \
-        set-option remain-on-exit on \; \
-        send-keys "sudo $COMPOSE_CMD -f '$COMPOSE_FILE' up" Enter
-    echo -e "${GREEN}==> Started. Attach with: tmux attach -t bloodhound${NC}"
+  tmux new-session -d -s bloodhound -c "$COMPOSE_DIR"
+  tmux set-option -t bloodhound -w remain-on-exit on
+  tmux send-keys -t bloodhound "$COMPOSE_CMD -f '$COMPOSE_FILE' up" Enter
+
+  echo -e "${GREEN}==> BloodHound starting on http://127.0.0.1:$port${NC}"
+  echo -e "${GREEN}==> Attach with: sudo tmux attach -t bloodhound${NC}"
 }
+
 
 # Ensure Node.js and npm
 ensure_nodejs() {
